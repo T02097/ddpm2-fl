@@ -1,0 +1,63 @@
+# 联邦学习DDPM配置文件
+# 适配新的UNet模型和GaussianDiffusionTrainer
+
+# 模型参数（与Main.py中的modelConfig对应）
+model_params:
+  T: 1000                          # 扩散步数
+  channel: 128                    # 基础通道数
+  channel_mult: [1, 2, 2, 4]      # 通道倍增因子
+  attn: [1]                       # 注意力层位置
+  num_res_blocks: 2               # 残差块数量
+  dropout: 0.15                   # Dropout率
+  img_size: 32                    # 原始图像大小（FashionMNIST为28x28）
+  device: "cuda:0"                # 设备
+  grad_clip: 1.0                  # 梯度裁剪阈值
+
+# Diffusion参数
+diffusion_params:
+  num_timesteps: 100              # 时间步数（与model_params.T一致）
+  beta_start: 0.0001               # beta_1 (从1e-4增加到1e-3)
+  beta_end: 0.02                  # beta_T
+  warmup_steps: 10                # warmup步数（T的1/10）
+
+# 数据集参数
+dataset_params:
+  name: "FashionMNIST"
+  im_path: "./FashionMNIST"       # 数据集路径
+  img_size: 32                    # resize后的图像大小
+
+# 联邦学习参数
+federated_params:
+  num_clients: 2                  # 客户端数量（可选2, 5, 10）
+  num_rounds: 100                 # 联邦学习轮数
+  epochs_per_round: 1             # 每轮本地训练的epoch数
+  batch_size: 80                  # 批次大小
+  learning_rate: 0.0001           # 学习率 (1e-4)
+  
+  # 客户端选择策略
+  client_selection_ratio: 1.0     # 每轮选择的客户端比例（1.0表示全部参与）
+  
+  # 聚合策略
+  aggregation_method: "fedavg"    # 聚合方法：fedavg
+  
+  # 通信设置
+  communication_rounds: 100       # 通信轮数（与num_rounds相同）
+  
+  # 数据分布设置
+  data_distribution: "iid"    # 数据分布：iid 或 non_iid
+  non_iid_alpha: 0.5              # Dirichlet分布参数（用于更复杂的non-iid划分）
+  
+  # 模型保存设置
+  save_interval: 10               # 每隔多少轮保存一次模型
+  model_save_path: "./Checkpoints/FederatedLearning/"  # 模型保存路径
+  
+  # 日志设置
+  log_interval: 1                 # 日志记录间隔
+  log_path: "./logs/federated/"   # 日志路径
+
+# 可选：继续训练设置
+resume_training:
+  enabled: false                  # 是否启用断点续训
+  checkpoint_path: null           # 检查点路径（null表示自动查找最新）
+  start_round: 0                  # 起始轮数（0表示从检查点中读取）
+

@@ -1,0 +1,54 @@
+# 联邦学习DDPM测试配置文件
+# 用于快速测试框架兼容性（小规模设置）
+
+# 模型参数
+model_params:
+  T: 50                           # 减少到50步用于测试
+  channel: 64                     # 减少通道数加速测试
+  channel_mult: [1, 2, 2]         # 减少层数
+  attn: [1]
+  num_res_blocks: 2
+  dropout: 0.15
+  img_size: 28
+  device: "cuda:0"
+  grad_clip: 1.0
+
+# Diffusion参数
+diffusion_params:
+  num_timesteps: 50               # 与T一致
+  beta_start: 0.001
+  beta_end: 0.02
+  warmup_steps: 5                 # T的1/10
+
+# 数据集参数
+dataset_params:
+  name: "FashionMNIST"
+  im_path: "./FashionMNIST"
+  img_size: 32
+
+# 联邦学习参数（小规模测试）
+federated_params:
+  num_clients: 2                  # 只用2个客户端测试
+  num_rounds: 5                   # 只训练5轮
+  epochs_per_round: 1             # 每轮1个epoch
+  batch_size: 32                  # 较小的batch size
+  learning_rate: 0.0001
+  
+  client_selection_ratio: 1.0
+  aggregation_method: "fedavg"
+  communication_rounds: 5
+  
+  data_distribution: "iid"        # IID更快收敛，适合测试
+  non_iid_alpha: 0.5
+  
+  save_interval: 2                # 每2轮保存一次
+  model_save_path: "./Checkpoints/FederatedLearning_Test/"
+  
+  log_interval: 1
+  log_path: "./logs/federated_test/"
+
+resume_training:
+  enabled: false
+  checkpoint_path: null
+  start_round: 0
+
