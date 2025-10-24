@@ -69,7 +69,7 @@ class FederatedClient:
             # IID模式：使用MyDataset加载完整数据集，然后分配给客户端
             if self.config.get('use_custom_iid_folders', False):
                 # 自定义IID文件夹模式
-                custom_iid_path = self.config.get('custom_iid_path', './custom_iid_data')
+                custom_iid_path = self.config.get('custom_iid_path', im_path)
                 client_folder = os.path.join(custom_iid_path, f'client_{self.client_id}')
                 
                 if not os.path.exists(client_folder):

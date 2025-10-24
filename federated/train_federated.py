@@ -69,7 +69,7 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
     # 数据集参数 - 使用MyDataset的配置
     dataset_params = {
         # 数据集路径
-        "im_path": "./dataset_images",
+        "im_path": "./FMNIST64",
         # 图像参数
         "img_size": model_params['img_size'],
         "in_channels": model_params['in_channels'],
@@ -83,6 +83,9 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
         # 是否使用数据增强
         "use_augmentation": True,
     }
+
+    # 统一设置自定义IID路径，使其与主数据集路径一致
+    fed_config['custom_iid_path'] = dataset_params['im_path']
 
     # 打印配置信息
     print("="*30)
