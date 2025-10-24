@@ -9,7 +9,7 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
     default_fed_config = {
         # 联邦学习基本参数
         "num_clients": 2,
-        "num_rounds": 200,
+        "num_rounds": 300,
         "epochs_per_round": 1,
         "batch_size": 80,
         "learning_rate": 1e-4,
@@ -26,15 +26,15 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
         
         # IID模式设置
         "use_custom_iid_folders": False,  # 是否使用自定义IID文件夹
-        "custom_iid_path": "./custom_iid_data",  # 自定义IID数据路径
+        "custom_iid_path": "./FMNIST64",  # 自定义IID数据路径
         
         # 模型保存设置
         "save_interval": 10,
-        "model_save_path": "./Checkpoints/Federated_mse_e200/",
+        "model_save_path": "./Checkpoints/Federated_Fmnist64_1/",
         
         # 日志设置
         "log_interval": 1,
-        "log_path": "./logs/federated_mse_e200/",
+        "log_path": "./logs/federated_Fmnist64_1/",
     }
     
     # 使用传入的配置或默认配置
@@ -55,8 +55,8 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
         "grad_clip": 1.0,
         # 新增
         "img_size": 64,
-        "in_channels": 3,
-        "out_channels": 3,
+        "in_channels": 1,
+        "out_channels": 1,
     }
     
     # 扩散模型参数 - 与Main.py保持一致
@@ -69,7 +69,7 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
     # 数据集参数 - 使用MyDataset的配置
     dataset_params = {
         # 数据集路径
-        "im_path": "./FMNIST64",
+        "im_path": "./FMNIST64/train",
         # 图像参数
         "img_size": model_params['img_size'],
         "in_channels": model_params['in_channels'],
@@ -105,7 +105,7 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
     print(f"  数据增强: {dataset_params['use_augmentation']}")
     if fed_config['data_distribution'] == 'iid':
         if fed_config.get('use_custom_iid_folders', False):
-            print(f"  IID模式: 自定义文件夹 ({fed_config.get('custom_iid_path', './custom_iid_data')})")
+            print(f"  IID模式: 自定义文件夹 ({fed_config.get('custom_iid_path', dataset_params['im_path'])})")
         else:
             print(f"  IID模式: 标准随机分配")
     print(f"  模型: T={model_params['T']}, channel={model_params['channel']}")

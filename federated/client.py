@@ -174,130 +174,130 @@ class FederatedClient:
         
         print(f"客户端 {self.client_id}: 数据加载完成，共 {len(self.dataset)} 个样本")
 
-    def load_data(self, data_path: str):
-        """加载客户端数据 - 支持普通IID和指定IID两种模式"""
+    # def load_data(self, data_path: str):
+    #     """加载客户端数据 - 支持普通IID和指定IID两种模式"""
         
-        # 数据变换
-        transform = transforms.Compose([
-            transforms.Resize((32, 32)),  # 调整到32x32以匹配模型
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,)),  # FashionMNIST是单通道
-        ])
+    #     # 数据变换
+    #     transform = transforms.Compose([
+    #         transforms.Resize((32, 32)),  # 调整到32x32以匹配模型
+    #         transforms.RandomHorizontalFlip(),
+    #         transforms.ToTensor(),
+    #         transforms.Normalize((0.5,), (0.5,)),  # FashionMNIST是单通道
+    #     ])
         
-        if self.config['data_distribution'] == 'iid':
-            # 检查是否使用指定的IID文件夹
-            if self.config.get('use_custom_iid_folders', False):
-                # 指定IID模式：使用预处理的文件夹
-                custom_iid_path = self.config.get('custom_iid_path', './custom_iid_data')
-                client_folder = os.path.join(custom_iid_path, f'client_{self.client_id}')
+    #     if self.config['data_distribution'] == 'iid':
+    #         # 检查是否使用指定的IID文件夹
+    #         if self.config.get('use_custom_iid_folders', False):
+    #             # 指定IID模式：使用预处理的文件夹
+    #             custom_iid_path = self.config.get('custom_iid_path', data_path)
+    #             client_folder = os.path.join(custom_iid_path, f'client_{self.client_id}')
                 
-                if not os.path.exists(client_folder):
-                    raise FileNotFoundError(f"客户端 {self.client_id} 的数据文件夹不存在: {client_folder}")
+    #             if not os.path.exists(client_folder):
+    #                 raise FileNotFoundError(f"客户端 {self.client_id} 的数据文件夹不存在: {client_folder}")
                 
-                # 使用ImageFolder加载指定文件夹的数据
-                from torchvision.datasets import ImageFolder
-                self.dataset = ImageFolder(root=client_folder, transform=transform)
+    #             # 使用ImageFolder加载指定文件夹的数据
+    #             from torchvision.datasets import ImageFolder
+    #             self.dataset = ImageFolder(root=client_folder, transform=transform)
                 
-                # 统计类别分布
-                category_counts = Counter()
-                for _, label in self.dataset:
-                    category_counts[label] += 1
+    #             # 统计类别分布
+    #             category_counts = Counter()
+    #             for _, label in self.dataset:
+    #                 category_counts[label] += 1
                 
-                logging.info(f"Client {self.client_id}: Custom IID from folder {client_folder} with {len(self.dataset)} samples")
-                logging.info(f"Client {self.client_id} category distribution: {dict(category_counts)}")
-                print(f"Client {self.client_id}: Custom IID from folder {client_folder} with {len(self.dataset)} samples")
-                print(f"Client {self.client_id} category distribution: {dict(category_counts)}")
+    #             logging.info(f"Client {self.client_id}: Custom IID from folder {client_folder} with {len(self.dataset)} samples")
+    #             logging.info(f"Client {self.client_id} category distribution: {dict(category_counts)}")
+    #             print(f"Client {self.client_id}: Custom IID from folder {client_folder} with {len(self.dataset)} samples")
+    #             print(f"Client {self.client_id} category distribution: {dict(category_counts)}")
                 
-            else:
-                # 普通IID模式：随机打乱FashionMNIST数据
-                # 加载完整的FashionMNIST数据集
-                full_dataset = FashionMNIST(
-                    root=data_path,
-                    train=True,
-                    download=True,
-                    transform=transform
-                )
+    #         else:
+    #             # 普通IID模式：随机打乱FashionMNIST数据
+    #             # 加载完整的FashionMNIST数据集
+    #             full_dataset = FashionMNIST(
+    #                 root=data_path,
+    #                 train=True,
+    #                 download=True,
+    #                 transform=transform
+    #             )
                 
-                # 随机打乱所有数据索引
-                import random
-                all_indices = list(range(len(full_dataset)))
-                random.seed(42)  # 设置固定种子确保可重现性
-                random.shuffle(all_indices)
+    #             # 随机打乱所有数据索引
+    #             import random
+    #             all_indices = list(range(len(full_dataset)))
+    #             random.seed(42)  # 设置固定种子确保可重现性
+    #             random.shuffle(all_indices)
                 
-                # 为每个客户端分配数据
-                total_samples = len(full_dataset)
-                samples_per_client = total_samples // self.config['num_clients']
-                start_idx = self.client_id * samples_per_client
-                end_idx = start_idx + samples_per_client if self.client_id < self.config['num_clients'] - 1 else total_samples
+    #             # 为每个客户端分配数据
+    #             total_samples = len(full_dataset)
+    #             samples_per_client = total_samples // self.config['num_clients']
+    #             start_idx = self.client_id * samples_per_client
+    #             end_idx = start_idx + samples_per_client if self.client_id < self.config['num_clients'] - 1 else total_samples
                 
-                # 获取分配给当前客户端的随机索引
-                client_indices = all_indices[start_idx:end_idx]
-                self.dataset = Subset(full_dataset, client_indices)
+    #             # 获取分配给当前客户端的随机索引
+    #             client_indices = all_indices[start_idx:end_idx]
+    #             self.dataset = Subset(full_dataset, client_indices)
                 
-                # 统计类别分布以验证IID
-                category_counts = Counter()
-                for idx in client_indices:
-                    _, label = full_dataset[idx]
-                    category_counts[label] += 1
+    #             # 统计类别分布以验证IID
+    #             category_counts = Counter()
+    #             for idx in client_indices:
+    #                 _, label = full_dataset[idx]
+    #                 category_counts[label] += 1
                 
-                logging.info(f"Client {self.client_id}: Standard IID distribution with {len(client_indices)} samples")
-                logging.info(f"Client {self.client_id} category distribution: {dict(category_counts)}")
-                print(f"Client {self.client_id}: Standard IID distribution with {len(client_indices)} samples")
-                print(f"Client {self.client_id} category distribution: {dict(category_counts)}")
-        else:
-            # Non-IID情况：按类别划分
-            num_categories = 10  # FashionMNIST有10个类别
+    #             logging.info(f"Client {self.client_id}: Standard IID distribution with {len(client_indices)} samples")
+    #             logging.info(f"Client {self.client_id} category distribution: {dict(category_counts)}")
+    #             print(f"Client {self.client_id}: Standard IID distribution with {len(client_indices)} samples")
+    #             print(f"Client {self.client_id} category distribution: {dict(category_counts)}")
+    #     else:
+    #         # Non-IID情况：按类别划分
+    #         num_categories = 10  # FashionMNIST有10个类别
             
-            # 根据客户端数量确定类别分配
-            if self.config['num_clients'] == 2:
-                # 前一半类别给客户端0，后一半给客户端1
-                assigned_categories = list(range(num_categories // 2)) if self.client_id == 0 else list(range(num_categories // 2, num_categories))
-            elif self.config['num_clients'] == 5:
-                # 每两个类别给一个客户端
-                start_idx = self.client_id * 2
-                end_idx = start_idx + 2 if self.client_id < self.config['num_clients'] - 1 else num_categories
-                assigned_categories = list(range(start_idx, end_idx))
-            elif self.config['num_clients'] == 10:
-                # 每个客户端一个类别
-                assigned_categories = [self.client_id]
-            else:
-                raise ValueError(f"Unsupported number of clients: {self.config['num_clients']}")
+    #         # 根据客户端数量确定类别分配
+    #         if self.config['num_clients'] == 2:
+    #             # 前一半类别给客户端0，后一半给客户端1
+    #             assigned_categories = list(range(num_categories // 2)) if self.client_id == 0 else list(range(num_categories // 2, num_categories))
+    #         elif self.config['num_clients'] == 5:
+    #             # 每两个类别给一个客户端
+    #             start_idx = self.client_id * 2
+    #             end_idx = start_idx + 2 if self.client_id < self.config['num_clients'] - 1 else num_categories
+    #             assigned_categories = list(range(start_idx, end_idx))
+    #         elif self.config['num_clients'] == 10:
+    #             # 每个客户端一个类别
+    #             assigned_categories = [self.client_id]
+    #         else:
+    #             raise ValueError(f"Unsupported number of clients: {self.config['num_clients']}")
             
-            # 获取对应类别的数据索引
-            indices = []
-            for idx in range(len(full_dataset)):
-                _, label = full_dataset[idx]
-                if label in assigned_categories:
-                    indices.append(idx)
+    #         # 获取对应类别的数据索引
+    #         indices = []
+    #         for idx in range(len(full_dataset)):
+    #             _, label = full_dataset[idx]
+    #             if label in assigned_categories:
+    #                 indices.append(idx)
             
-            # 创建客户端数据集
-            self.dataset = Subset(full_dataset, indices)
+    #         # 创建客户端数据集
+    #         self.dataset = Subset(full_dataset, indices)
             
-            # 打印客户端数据类别分布
-            logging.info(f"Client {self.client_id} assigned categories: {assigned_categories}")
-            print(f"Client {self.client_id} assigned categories: {assigned_categories}")
+    #         # 打印客户端数据类别分布
+    #         logging.info(f"Client {self.client_id} assigned categories: {assigned_categories}")
+    #         print(f"Client {self.client_id} assigned categories: {assigned_categories}")
             
-            # 统计类别分布
-            category_counts = Counter()
-            for idx in indices:
-                _, label = full_dataset[idx]
-                category_counts[label] += 1
-            logging.info(f"Client {self.client_id} category distribution: {dict(category_counts)}")
-            print(f"Client {self.client_id} category distribution: {dict(category_counts)}")
+    #         # 统计类别分布
+    #         category_counts = Counter()
+    #         for idx in indices:
+    #             _, label = full_dataset[idx]
+    #             category_counts[label] += 1
+    #         logging.info(f"Client {self.client_id} category distribution: {dict(category_counts)}")
+    #         print(f"Client {self.client_id} category distribution: {dict(category_counts)}")
 
-        # 创建数据加载器
-        # IID情况下每个epoch都重新打乱，Non-IID情况下也打乱以增加随机性
-        self.data_loader = DataLoader(
-            self.dataset,
-            batch_size=self.config['batch_size'],
-            shuffle=True,  # 每个epoch都重新打乱
-            num_workers=4,
-            drop_last=True,
-            pin_memory=True
-        )
-        logging.info(f"Client {self.client_id} loaded {len(self.dataset)} samples")
-        print(f"Client {self.client_id} loaded {len(self.dataset)} samples")
+    #     # 创建数据加载器
+    #     # IID情况下每个epoch都重新打乱，Non-IID情况下也打乱以增加随机性
+    #     self.data_loader = DataLoader(
+    #         self.dataset,
+    #         batch_size=self.config['batch_size'],
+    #         shuffle=True,  # 每个epoch都重新打乱
+    #         num_workers=4,
+    #         drop_last=True,
+    #         pin_memory=True
+    #     )
+    #     logging.info(f"Client {self.client_id} loaded {len(self.dataset)} samples")
+    #     print(f"Client {self.client_id} loaded {len(self.dataset)} samples")
 
     def train(self, global_model_state: Dict, round_idx: int) -> Tuple[Dict, int]:
         """本地模型训练 - 使用GaussianDiffusionTrainer"""
