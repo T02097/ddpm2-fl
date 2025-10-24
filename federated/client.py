@@ -10,6 +10,7 @@ from Diffusion.Diffusion import GaussianDiffusionTrainer
 from torchvision.datasets import FashionMNIST
 from torchvision import transforms
 from collections import Counter
+from federated.MyDataset import MyDataset,create_dataloader
 
 
 class FederatedClient:
@@ -50,6 +51,128 @@ class FederatedClient:
         ).to(device)
         
         self.split = self.config.get('data_split', 'train')
+
+    def load_data_with_params(self, dataset_params: Dict):
+        """使用MyDataset加载数据 - 新的数据加载方法"""
+        print(f"客户端 {self.client_id}: 使用MyDataset加载数据...")
+        
+        # 从参数中获取配置
+        im_path = dataset_params['im_path']
+        img_size = dataset_params['img_size']
+        in_channels = dataset_params['in_channels']
+        out_channels = dataset_params['out_channels']
+        im_ext = dataset_params.get('im_ext', 'png')
+        normalize_range = dataset_params.get('normalize_range', (-1, 1))
+        use_augmentation = dataset_params.get('use_augmentation', True)
+        
+        if self.config['data_distribution'] == 'iid':
+            # IID模式：使用MyDataset加载完整数据集，然后分配给客户端
+            if self.config.get('use_custom_iid_folders', False):
+                # 自定义IID文件夹模式
+                custom_iid_path = self.config.get('custom_iid_path', './custom_iid_data')
+                client_folder = os.path.join(custom_iid_path, f'client_{self.client_id}')
+                
+                if not os.path.exists(client_folder):
+                    raise FileNotFoundError(f"客户端 {self.client_id} 的数据文件夹不存在: {client_folder}")
+                
+                # 使用MyDataset加载指定文件夹的数据
+                self.dataset = MyDataset(
+                    split='train',
+                    im_path=client_folder,
+                    im_ext=im_ext,
+                    img_size=img_size,
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    normalize_range=normalize_range,
+                    use_augmentation=use_augmentation
+                )
+                
+                print(f"客户端 {self.client_id}: 从自定义文件夹 {client_folder} 加载了 {len(self.dataset)} 个样本")
+                
+            else:
+                # 标准IID模式：加载完整数据集然后随机分配
+                full_dataset = MyDataset(
+                    split='train',
+                    im_path=im_path,
+                    im_ext=im_ext,
+                    img_size=img_size,
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    normalize_range=normalize_range,
+                    use_augmentation=use_augmentation
+                )
+                
+                # 随机分配数据给客户端
+                import random
+                all_indices = list(range(len(full_dataset)))
+                random.seed(42 + self.client_id)  # 每个客户端使用不同的种子
+                random.shuffle(all_indices)
+                
+                # 计算每个客户端的数据量
+                total_samples = len(full_dataset)
+                samples_per_client = total_samples // self.config['num_clients']
+                start_idx = self.client_id * samples_per_client
+                end_idx = start_idx + samples_per_client if self.client_id < self.config['num_clients'] - 1 else total_samples
+                
+                # 获取分配给当前客户端的索引
+                client_indices = all_indices[start_idx:end_idx]
+                self.dataset = Subset(full_dataset, client_indices)
+                
+                print(f"客户端 {self.client_id}: 从完整数据集分配了 {len(client_indices)} 个样本")
+                
+        else:
+            # Non-IID模式：按类别分配
+            full_dataset = MyDataset(
+                split='train',
+                im_path=im_path,
+                im_ext=im_ext,
+                img_size=img_size,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                normalize_range=normalize_range,
+                use_augmentation=use_augmentation
+            )
+            
+            # 获取类别信息
+            if hasattr(full_dataset, 'get_class_distribution'):
+                class_distribution = full_dataset.get_class_distribution()
+                num_categories = len(class_distribution)
+            else:
+                # 假设有10个类别（如FashionMNIST）
+                num_categories = 10
+            
+            # 根据客户端数量确定类别分配
+            if self.config['num_clients'] == 2:
+                assigned_categories = list(range(num_categories // 2)) if self.client_id == 0 else list(range(num_categories // 2, num_categories))
+            elif self.config['num_clients'] == 5:
+                start_idx = self.client_id * 2
+                end_idx = start_idx + 2 if self.client_id < self.config['num_clients'] - 1 else num_categories
+                assigned_categories = list(range(start_idx, end_idx))
+            elif self.config['num_clients'] == 10:
+                assigned_categories = [self.client_id]
+            else:
+                raise ValueError(f"不支持的客户端数量: {self.config['num_clients']}")
+            
+            # 获取对应类别的数据索引
+            indices = []
+            for idx in range(len(full_dataset)):
+                _, label = full_dataset[idx]
+                if label in assigned_categories:
+                    indices.append(idx)
+            
+            self.dataset = Subset(full_dataset, indices)
+            print(f"客户端 {self.client_id}: Non-IID模式，分配类别 {assigned_categories}，共 {len(indices)} 个样本")
+        
+        # 创建数据加载器
+        self.data_loader = create_dataloader(
+            self.dataset,
+            batch_size=self.config['batch_size'],
+            shuffle=True,
+            num_workers=4,
+            drop_last=True
+        )
+        
+        print(f"客户端 {self.client_id}: 数据加载完成，共 {len(self.dataset)} 个样本")
 
     def load_data(self, data_path: str):
         """加载客户端数据 - 支持普通IID和指定IID两种模式"""

@@ -2,6 +2,7 @@ import argparse
 import os
 from federated.server import FederatedServer
 from federated.client import FederatedClient
+from federated.MyDataset import MyDataset,create_dataloader
 
 def main(federated_config=None, checkpoint_path=None, start_round=0, resume=False):
     # 联邦学习配置 - 使用类似Main.py的方式
@@ -42,7 +43,7 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
     else:
         fed_config = default_fed_config
     
-    # 模型参数 - 与Main.py保持一致
+    # 模型参数 - 增加分辨率与通道配置以支持64x64与RGB
     model_params = {
         "T": 1000,
         "channel": 128,
@@ -52,6 +53,10 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
         "dropout": 0.15,
         "device": "cuda:0",
         "grad_clip": 1.0,
+        # 新增
+        "img_size": 64,
+        "in_channels": 3,
+        "out_channels": 3,
     }
     
     # 扩散模型参数 - 与Main.py保持一致
@@ -61,9 +66,22 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
         "T": 1000,
     }
     
-    # 数据集参数
+    # 数据集参数 - 使用MyDataset的配置
     dataset_params = {
-        "im_path": "./FashionMNIST",
+        # 数据集路径
+        "im_path": "./dataset_images",
+        # 图像参数
+        "img_size": model_params['img_size'],
+        "in_channels": model_params['in_channels'],
+        "out_channels": model_params['out_channels'],
+        # 数据集类型："cifar10"、"imagefolder"或"custom"
+        "dataset": "imagefolder",
+        # 图像文件扩展名
+        "im_ext": "png",
+        # 归一化范围
+        "normalize_range": (-1, 1),
+        # 是否使用数据增强
+        "use_augmentation": True,
     }
 
     # 打印配置信息
@@ -71,11 +89,17 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
     print("联邦学习DDPM配置:")
     print(f"  客户端数量: {fed_config['num_clients']}")
     print(f"  联邦学习轮数: {fed_config['num_rounds']}")
-    print(f"  数据集为{dataset_params['im_path']}")
+    print(f"  数据集路径:{dataset_params['im_path']}")
     print(f"  每轮本地训练epoch: {fed_config['epochs_per_round']}")
     print(f"  批次大小: {fed_config['batch_size']}")
     print(f"  学习率: {fed_config['learning_rate']}")
     print(f"  数据分布: {fed_config['data_distribution']}")
+    print(f"  图像分辨率: {model_params['img_size']}x{model_params['img_size']}")
+    print(f"  通道数: in={model_params['in_channels']}, out={model_params['out_channels']}")
+    print(f"  数据集类型: {dataset_params['dataset']}")
+    print(f"  图像扩展名: {dataset_params['im_ext']}")
+    print(f"  归一化范围: {dataset_params['normalize_range']}")
+    print(f"  数据增强: {dataset_params['use_augmentation']}")
     if fed_config['data_distribution'] == 'iid':
         if fed_config.get('use_custom_iid_folders', False):
             print(f"  IID模式: 自定义文件夹 ({fed_config.get('custom_iid_path', './custom_iid_data')})")
@@ -99,8 +123,8 @@ def main(federated_config=None, checkpoint_path=None, start_round=0, resume=Fals
             diffusion_params=diffusion_params,
             federated_config=fed_config
         )
-        # 直接传递数据集根目录，客户端会自动处理
-        client.load_data(dataset_params['im_path'])
+        # 传递数据集参数，客户端将使用MyDataset
+        client.load_data_with_params(dataset_params)
         server.clients.append(client)
     
     print(f"\n成功初始化 {len(server.clients)} 个客户端")
